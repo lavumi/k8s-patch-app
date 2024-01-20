@@ -10,6 +10,7 @@ pub struct K8sClient{}
 
 impl K8sClient{
     async fn get_client(&self) -> Result<Client, Error> {
+        //todo add credeitnal logins
         let client = Client::try_default().await?;
         Ok(client)
     }
