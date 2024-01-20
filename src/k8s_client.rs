@@ -14,9 +14,13 @@ impl K8sClient{
         Ok(client)
     }
 
+
     pub async fn get_replicas(&self,namespace: Option<&String>, deployment_name : &String)->Result<i32, Error>{
         let client = self.get_client().await?;
-        let deployments:Api<Deployment> = Api::default_namespaced(client);
+        let deployments:Api<Deployment> = match namespace {
+            Some(ns)=>Api::namespaced(client, ns),
+            None => Api::default_namespaced(client)
+        };
         let deployment = deployments.get(deployment_name).await?;
         if let Some(spec) = deployment.spec {
             if let Some(replicas) = spec.replicas{
@@ -29,7 +33,10 @@ impl K8sClient{
 
     pub async fn set_replicas(&self,namespace: Option<&String>, deployment_name : &String, count : i32)->Result<(), Error>{
         let client = self.get_client().await?;
-        let deployments:Api<Deployment> = Api::default_namespaced(client);
+        let deployments:Api<Deployment> = match namespace {
+            Some(ns)=>Api::namespaced(client, ns),
+            None => Api::default_namespaced(client)
+        };
         let patches = json!({
             "spec": {
                 "replicas": count
@@ -42,7 +49,10 @@ impl K8sClient{
 
     pub async fn patch_params(&self, namespace: Option<&String>, deployment_name : &String, patches :json_patch::Patch)-> Result<(), Error>{
         let client = self.get_client().await?;
-        let deployments:Api<Deployment> = Api::default_namespaced(client);
+        let deployments:Api<Deployment> = match namespace {
+            Some(ns)=>Api::namespaced(client, ns),
+            None => Api::default_namespaced(client)
+        };
         let params = PatchParams::apply("k9s-patch-app");
         deployments.patch(&deployment_name, &params, &Patch::<Value>::Json(patches)).await?;
         Ok(())
@@ -85,8 +95,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_patch(){
-
-        let namespace = None;
+        let ns = "default".to_string();
+        let namespace = Some(&ns);
         let deployment =  "my-webapp".to_string();
         let patches = r#"[{"op": "replace", "path": "/spec/replicas", "value": 2}]"#;
         let patches :json_patch::Patch= match serde_json::from_str(&patches) {
